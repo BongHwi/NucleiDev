@@ -198,6 +198,7 @@ AliAnalysisTaskNucleiYieldtemp::AliAnalysisTaskNucleiYieldtemp(TString taskname)
    ,fTPCbackgroundTpl{nullptr}
    ,fDCAxy{{nullptr}}
    ,fDCAz{{nullptr}}
+   ,fTOFsignalQA{nullptr}
    ,fHist2Phi{nullptr}
    ,fTRDboundariesPos{nullptr}
    ,fTRDboundariesNeg{nullptr}
@@ -317,6 +318,9 @@ void AliAnalysisTaskNucleiYieldtemp::UserCreateOutputObjects() {
     for (int i = 0; i <= nTOFSigmaBins; ++i)
       tofSigmaBins[i] = -12.f + i * 0.1;
 
+    auto fTOFsignalQA = new TH1F("QATOF","QATOF",fTOFnBins,tofBins);
+    fList->Add(fTOFsignalQA);
+
     for (int iC = 0; iC < 2; ++iC) {
       fTOFsignal[iC] = new TH3F(Form("f%cTOFsignal",letter[iC]),
           ";Centrality (%);#it{p}_{T} (GeV/#it{c});#it{m}^{2}-m_{PDG}^{2} (GeV/#it{c}^{2})^{2}",
@@ -381,14 +385,14 @@ void AliAnalysisTaskNucleiYieldtemp::UserCreateOutputObjects() {
 
   if (fSaveTrees) {
     fRTree = new TTree("RTree", "Reconstructed nuclei");
-    fRTree->Branch("RLightNucleus", &fRecNucleus);
-    if (fIsMC) fRTree->Branch("SLightNucleus", &fSimNucleus);
+    fRTree->Branch("RLightNucleusTemp", &fRecNucleus);
+    if (fIsMC) fRTree->Branch("SLightNucleusTemp", &fSimNucleus);
 
     PostData(2, fRTree);
 
     if (fIsMC) {
       fSTree = new TTree("STree", "Simulated nuclei");
-      fSTree->Branch("SLightNucleus", &fSimNucleus);
+      fSTree->Branch("SLightNucleusTemp", &fSimNucleus);
       PostData(3, fSTree);
     }
   }
@@ -517,7 +521,7 @@ void AliAnalysisTaskNucleiYieldtemp::UserExec(Option_t *){
           continue;
         }
       }
-      SetSLightNucleus(part,fSimNucleus);
+      SetSLightNucleusTemp(part,fSimNucleus);
       if (fSaveTrees) fSTree->Fill();
       if (fIsMC) fProduction->Fill(mult * part->P());
       if (part->Y() > fRequireYmax || part->Y() < fRequireYmin) continue;
@@ -810,7 +814,7 @@ int AliAnalysisTaskNucleiYieldtemp::GetNumberOfITSclustersPerLayer(AliVTrack *tr
   return nSPD + nSDD + nSSD;
 }
 
-void AliAnalysisTaskNucleiYieldtemp::SetSLightNucleus(AliAODMCParticle* part, SLightNucleus& snucl) {
+void AliAnalysisTaskNucleiYieldtemp::SetSLightNucleusTemp(AliAODMCParticle* part, SLightNucleusTemp& snucl) {
   snucl.pt = part->Pt();
   snucl.eta = part->Eta();
   snucl.phi = part->Phi();

@@ -6,7 +6,6 @@
 #include "AliAnalysisManager.h"
 #include "AliMCEventHandler.h"
 #include "AliAnalysisTaskNucleiYieldtemp.h"
-#include "AliAnalysisTaskNucleiYield.h"
 #include "AliESDInputHandler.h"
 #endif
 
@@ -154,7 +153,7 @@ void run_KIAF(const char* dataset = "test1.list",
     myTask->SetRequireCutGeoNcrNclFractionNcl(0.7);
 
     // Additional TOF Clean Up
-    myTask->fOptionalTOFcleanup = 5.0;
+    // myTask->fOptionalTOFcleanup = 5.0;
   }
   if (!mgr->InitAnalysis())
     return;

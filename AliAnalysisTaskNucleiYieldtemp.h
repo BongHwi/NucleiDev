@@ -52,7 +52,7 @@ class TTree;
 class AliPWGFunc;
 class AliNanoAODTrack;
 
-struct SLightNucleus {
+struct SLightNucleusTemp {
   float pt;
   float eta;
   float phi;
@@ -60,7 +60,7 @@ struct SLightNucleus {
   int   flag;
 };
 
-struct RLightNucleus {
+struct RLightNucleusTemp {
   float pt;
   float eta;
   float phi;
@@ -166,7 +166,7 @@ private:
   AliAnalysisTaskNucleiYieldtemp &operator=(const AliAnalysisTaskNucleiYieldtemp &source);
 
   template<class track> void TrackLoop(track* t, bool nano);
-  void SetSLightNucleus(AliAODMCParticle* part, SLightNucleus& snucl);
+  void SetSLightNucleusTemp(AliAODMCParticle* part, SLightNucleusTemp& snucl);
 
   bool IsInTRD(float pt, float phi, float sign);
 
@@ -248,8 +248,8 @@ private:
   Bool_t                fEnableFlattening;      ///<  Switch on/off the flattening
 
   Bool_t                fSaveTrees;             ///<  Switch on/off the output TTrees
-  RLightNucleus         fRecNucleus;            ///<  Reconstructed nucleus
-  SLightNucleus         fSimNucleus;            ///<  Simulated nucleus
+  RLightNucleusTemp         fRecNucleus;            ///<  Reconstructed nucleus
+  SLightNucleusTemp         fSimNucleus;            ///<  Simulated nucleus
 
 
   AliPID::EParticleType fParticle;              ///<  Particle specie
@@ -288,6 +288,7 @@ private:
   TH3F                 *fTPCbackgroundTpl[2];    //!<! *(Data only)* TPC counts for (anti-)matter
   TH3F                 *fDCAxy[2][2];            //!<! *(Data only)* \f$DCA_{xy}\f$ distribution for ITS+TPC tracks
   TH3F                 *fDCAz[2][2];             //!<! *(Data only)* \f$DCA_{z}\f$ distribution for ITS+TPC tracks
+  TH1F                 *fTOFsignalQA;            //!<! *(Data only)* TOF PID QA
   TH2F *fHist2Phi[2]; //! phi vs pt, negative (0) and positive (1): used for monitoring
   TF1 *fTRDboundariesPos[4]; //!<! Function with the phi limits of TRD boundaries as a function of pt
   TF1 *fTRDboundariesNeg[4]; //!<! Function with the phi limits of TRD boundaries as a function of pt
@@ -319,7 +320,7 @@ template<class track_t> void AliAnalysisTaskNucleiYieldtemp::TrackLoop(track_t* 
       AliAODMCParticle *part = (AliAODMCParticle*)MCEvent()->GetTrack(mcId);
       if (part) {
         good2save = std::abs(part->PdgCode()) == fPDG;
-        SetSLightNucleus(part, fSimNucleus);
+        SetSLightNucleusTemp(part, fSimNucleus);
       } else
         good2save = false;
     }
@@ -408,8 +409,10 @@ template<class track_t> void AliAnalysisTaskNucleiYieldtemp::TrackLoop(track_t* 
     if (TMath::Abs(dca[0]) > fRequireMaxDCAxy) return;
     bool tofCleanUp = fOptionalTOFcleanup < 0 ? true : std::abs(tof_n_sigma) < fOptionalTOFcleanup || beta < 0;
     if ((fRequireMaxMomentum < 0 || track->GetTPCmomentum() < fRequireMaxMomentum) && tofCleanUp &&
-        (pid_mask & 8))
+        (pid_mask & 8)){
       fTPCcounts[iC]->Fill(fCentrality, pT, tpc_n_sigma);
+      fTOFsignalQA->Fill(std::abs(tof_n_sigma));
+    }
 
     if (iTof == 0) return;
     if (std::abs(tof_n_sigma) < 4.)
