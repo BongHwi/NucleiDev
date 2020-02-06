@@ -267,7 +267,7 @@ void AliAnalysisTaskNucleiYieldtemp::UserCreateOutputObjects() {
   }
   if (fPtShape)
     fPtShapeMaximum = fPtShape->GetMaximum(0,10,1.e-10,10000);
-
+    
   if (fIsMC) {
     fProduction = new TH1F("fProduction",";#it{p} (GeV/#it{c});Entries",100,-10,10);
     fList->Add(fProduction);
@@ -317,8 +317,7 @@ void AliAnalysisTaskNucleiYieldtemp::UserCreateOutputObjects() {
     float tofSigmaBins[nTOFSigmaBins + 1];
     for (int i = 0; i <= nTOFSigmaBins; ++i)
       tofSigmaBins[i] = -12.f + i * 0.1;
-
-    auto fTOFsignalQA = new TH1F("QATOF","QATOF",fTOFnBins,tofBins);
+    fTOFsignalQA = new TH1D("QATOF","QATOF",fTOFnBins,tofBins);
     fList->Add(fTOFsignalQA);
 
     for (int iC = 0; iC < 2; ++iC) {

@@ -158,7 +158,7 @@ public:
   bool                fPropagateTracks; /// Workaround for troublesome productions
   TArrayF             fPtCorrectionA;         ///<  Array containing the parametrisation of the \f$p_{T}\$ correction for anti-matter
   TArrayF             fPtCorrectionM;         ///<  Array containing the parametrisation of the \f$p_{T}\$ correction for matter
-  double              fOptionalTOFcleanup;   ///<
+  double              fOptionalTOFcleanup;   ///<  Array containing the parametrisation of the \f$p_{T}\$ correction for matter
 
   std::vector<float>  fINT7intervals;        ///< Array containing the centrality interval where we select only kINT7 triggers  
 private:
@@ -288,7 +288,7 @@ private:
   TH3F                 *fTPCbackgroundTpl[2];    //!<! *(Data only)* TPC counts for (anti-)matter
   TH3F                 *fDCAxy[2][2];            //!<! *(Data only)* \f$DCA_{xy}\f$ distribution for ITS+TPC tracks
   TH3F                 *fDCAz[2][2];             //!<! *(Data only)* \f$DCA_{z}\f$ distribution for ITS+TPC tracks
-  TH1F                 *fTOFsignalQA;            //!<! *(Data only)* TOF PID QA
+  TH1D                 *fTOFsignalQA;            //!<! *(Data only)* TOF PID QA
   TH2F *fHist2Phi[2]; //! phi vs pt, negative (0) and positive (1): used for monitoring
   TF1 *fTRDboundariesPos[4]; //!<! Function with the phi limits of TRD boundaries as a function of pt
   TF1 *fTRDboundariesNeg[4]; //!<! Function with the phi limits of TRD boundaries as a function of pt

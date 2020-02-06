@@ -5,8 +5,8 @@
 #include "AliMultSelectionTask.h"
 #include "AliAnalysisManager.h"
 #include "AliMCEventHandler.h"
+#include "AliAnalysisTaskNucleiYield.h"
 #include "AliAnalysisTaskNucleiYieldtemp.h"
-#include "AliESDInputHandler.h"
 #endif
 
 void run_KIAF(const char* dataset = "test1.list",
@@ -84,32 +84,13 @@ void run_KIAF(const char* dataset = "test1.list",
       reinterpret_cast<AliAnalysisTask*>(gInterpreter->ExecuteMacro(
           Form("$ALICE_ROOT/ANALYSIS/macros/AddTaskPIDResponse.C(%d)", ismc)));
   if (isDev) {
-    gInterpreter->LoadMacro("AliAnalysisTaskNucleiYieldtemp.cxx+g");
+    gInterpreter->LoadMacro("AliAnalysisTaskNucleiYieldtemp.cxx++g");
     // AliAnalysisTaskXi1530temp *myTask =
     // reinterpret_cast<AliAnalysisTaskXi1530temp*>(gInterpreter->ExecuteMacro(Form("AddTaskXi1530.c(\"%s\",\"%s\",%i,%d,%d,%d,%d)",taskname,option,nmix,highmult,isaa,ismc,setmixing)));
 
     AliAnalysisTaskNucleiYieldtemp* myTask =
         reinterpret_cast<AliAnalysisTaskNucleiYieldtemp*>(
             gInterpreter->ExecuteMacro("AddTaskNucleiYieldtemp_LHC15o.C(kFALSE,AliPID::kHe3,1000020030,\"he3\")"));
-    double p[4] = {1.,1.,74.,63.};
-    myTask->fTOFfunctionPars.Set(4,p);
-    //float pt[17] = {
-    //1.1,1.5,1.95, 2.45, 2.95, 3.45, 3.95, 4.45, 4.95, 5.45,
-    //5.95, 6.45, 6.95,8.0,9.0,10.0
-    //};
-    float pt[17] = {0.95, 1.45, 1.95, 2.45, 2.95, 3.45, 3.95, 4.45, 4.95, 5.45, 5.95, 6.45 ,6.95,7.45, 7.95, 8.95, 9.95};
-    float corr[3] = {-1.67762e-03f,2.76265e-01,-1.72861e-01};
-    myTask->fPtCorrectionM.Set(3,corr);
-    myTask->fPtCorrectionA.Set(3,corr);
-    myTask->SetEnablePtCorrection(false);
-    myTask->SetPtBins(16,pt);
-    myTask->SetRequireTPCpidSigmas(4.5);
-    float resolution = 0.05871;
-    float bethe[5]={-166.11733,-0.11020473,0.10851357,2.7018593,-0.087597824};
-    myTask->SetCustomTPCpid(bethe,resolution);
-    myTask->fEventCut.SetManualMode();
-    myTask->fEventCut.SetupPbPb2018();
-    myTask->fINT7intervals = {10.,30.,50.,90.};
 
     // For LHC18 analysis
     myTask->SetRequireDeadZoneWidth(3.0);
