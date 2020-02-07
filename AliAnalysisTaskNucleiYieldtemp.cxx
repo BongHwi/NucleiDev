@@ -317,7 +317,7 @@ void AliAnalysisTaskNucleiYieldtemp::UserCreateOutputObjects() {
     float tofSigmaBins[nTOFSigmaBins + 1];
     for (int i = 0; i <= nTOFSigmaBins; ++i)
       tofSigmaBins[i] = -12.f + i * 0.1;
-    fTOFsignalQA = new TH1D("QATOF","QATOF",fTOFnBins,tofBins);
+    fTOFsignalQA = new TH1D("QATOF","QATOF",140,-7,7);
     fList->Add(fTOFsignalQA);
 
     for (int iC = 0; iC < 2; ++iC) {
