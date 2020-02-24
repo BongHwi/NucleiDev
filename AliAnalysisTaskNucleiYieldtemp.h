@@ -411,7 +411,7 @@ template<class track_t> void AliAnalysisTaskNucleiYieldtemp::TrackLoop(track_t* 
     if ((fRequireMaxMomentum < 0 || track->GetTPCmomentum() < fRequireMaxMomentum) && tofCleanUp &&
         (pid_mask & 8)){
       fTPCcounts[iC]->Fill(fCentrality, pT, tpc_n_sigma);
-      if(beta > 0) 
+      if(std::abs(tof_n_sigma) < fOptionalTOFcleanup) 
         fTOFsignalQA->Fill(tof_n_sigma);
     }
 
