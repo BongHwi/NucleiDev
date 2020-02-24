@@ -82,6 +82,7 @@ AliAnalysisTaskNucleiYieldtemp* AddTaskNucleiYieldtemp_LHC15o(Bool_t isMC = kFAL
 
   double p[4] = {1.,1.,74.,63.};
   deu->fTOFfunctionPars.Set(4,p);
+  deu->SetRequireTPCrecPoints(100);
 
   mgr->AddTask(deu);
 
