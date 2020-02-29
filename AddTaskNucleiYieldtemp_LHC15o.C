@@ -50,6 +50,7 @@ AliAnalysisTaskNucleiYieldtemp* AddTaskNucleiYieldtemp_LHC15o(Bool_t isMC = kFAL
   deu->SetCustomTPCpid(bethe,resolution);
   deu->fEventCut.SetManualMode();
   deu->fEventCut.SetupPbPb2018();
+  deu->fEventCut.UseTimeRangeCut();
   deu->fINT7intervals = {10.,30.,50.,90.};
   // deu->SetRequireTPCpidSigmas(3.f);
   float cent[11] = {0.f,5.f,10.f,20.f,30.f,40.f,50.f,60.f,70.f,80.f,90.f};
@@ -83,6 +84,13 @@ AliAnalysisTaskNucleiYieldtemp* AddTaskNucleiYieldtemp_LHC15o(Bool_t isMC = kFAL
   double p[4] = {1.,1.,74.,63.};
   deu->fTOFfunctionPars.Set(4,p);
   deu->SetRequireTPCrecPoints(100);
+
+  // For LHC18 analysis
+    deu->SetRequireDeadZoneWidth(3.0);
+    deu->SetRequireCutGeoNcrNclLength(130);
+    deu->SetRequireCutGeoNcrNclGeom1Pt(1.5);
+    deu->SetRequireCutGeoNcrNclFractionNcr(0.85);
+    deu->SetRequireCutGeoNcrNclFractionNcl(0.7);
 
   mgr->AddTask(deu);
 
