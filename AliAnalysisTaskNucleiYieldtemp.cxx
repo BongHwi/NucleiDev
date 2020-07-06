@@ -21,6 +21,7 @@
 // ALIROOT includes
 #include "AdditionalFunctions.h"
 #include "AliAnalysisManager.h"
+#include "AliAODHeader.h"
 #include "AliCentrality.h"
 #include "AliPWGFunc.h"
 #include "AliPDG.h"
@@ -123,11 +124,15 @@ AliAnalysisTaskNucleiYieldtemp::AliAnalysisTaskNucleiYieldtemp(TString taskname)
    ,fIsMC{false}
    ,fFillOnlyEventHistos{false}
    ,fPID{nullptr}
+   ,fTriggerMask{0}
    ,fMagField{0.f}
+   ,fCentrality{-1.f}
    ,fDCAzLimit{10.}
    ,fDCAzNbins{400}
    ,fSigmaLimit{6.}
    ,fSigmaNbins{240}
+   ,fTOFSigmaLimit{12.}
+   ,fTOFSigmaNbins{240}
    ,fTOFlowBoundary{-2.4}
    ,fTOFhighBoundary{3.6}
    ,fTOFnBins{75}
@@ -151,6 +156,7 @@ AliAnalysisTaskNucleiYieldtemp::AliAnalysisTaskNucleiYieldtemp(TString taskname)
    ,fRequireITSpidSigmas{-1.f}
    ,fRequireTOFpidSigmas{-1.f}
    ,fRequireMinEnergyLoss{0.}
+   ,fApplyTPCLengthCut{false}
    ,fRequireDeadZoneWidth{0.}
    ,fRequireCutGeoNcrNclLength{0.}
    ,fRequireCutGeoNcrNclGeom1Pt{0.}
@@ -167,8 +173,9 @@ AliAnalysisTaskNucleiYieldtemp::AliAnalysisTaskNucleiYieldtemp(TString taskname)
    ,fEstimator{0}
    ,fEnableFlattening{false}
    ,fSaveTrees{false}
-   ,fRecNucleus{}
-   ,fSimNucleus{}
+   ,fTOFminPtTrees{100}
+   ,fRecNucleus{0.,0.,0.,0.,0.,0.,0,0,0}
+   ,fSimNucleus{0.,0.,0,0,0}
    ,fParticle{AliPID::kUnknown}
    ,fCentBins{0}
    ,fDCABins{0}
@@ -191,6 +198,15 @@ AliAnalysisTaskNucleiYieldtemp::AliAnalysisTaskNucleiYieldtemp(TString taskname)
    ,fTOFT0FillSignal{nullptr}
    ,fTOFNoT0FillSignal{nullptr}
    ,fTPCcounts{nullptr}
+   ,fTPCcountsQA{nullptr}
+   ,fTPCcountsQA2{nullptr}
+   ,fTPCcountsQA3{nullptr}
+   ,fTPCcountsQA4{nullptr}
+   ,fTPCcountsQA5{nullptr}
+   ,fTPCcountsQA6{nullptr}
+   ,fTPCcountsQA7{nullptr}
+   ,fMultDistributionTPC{nullptr}
+   ,fMultDistributionTOF{nullptr}
    ,fTOFnSigma{nullptr}
    ,fTOFT0FillNsigma{nullptr}
    ,fTOFNoT0FillNsigma{nullptr}
@@ -198,7 +214,6 @@ AliAnalysisTaskNucleiYieldtemp::AliAnalysisTaskNucleiYieldtemp(TString taskname)
    ,fTPCbackgroundTpl{nullptr}
    ,fDCAxy{{nullptr}}
    ,fDCAz{{nullptr}}
-   ,fTOFsignalQA{nullptr}
    ,fHist2Phi{nullptr}
    ,fTRDboundariesPos{nullptr}
    ,fTRDboundariesNeg{nullptr}
@@ -206,6 +221,7 @@ AliAnalysisTaskNucleiYieldtemp::AliAnalysisTaskNucleiYieldtemp(TString taskname)
    ,fTRDin{false}
    ,fNanoPIDindexTPC{-1}
    ,fNanoPIDindexTOF{-1}
+   ,fRefMult{-1}
    {
      gRandom->SetSeed(0); //TODO: provide a simple method to avoid "complete randomness"
      Float_t aCorrection[3] = {-2.10154e-03,-4.53472e-01,-3.01246e+00};
@@ -267,7 +283,7 @@ void AliAnalysisTaskNucleiYieldtemp::UserCreateOutputObjects() {
   }
   if (fPtShape)
     fPtShapeMaximum = fPtShape->GetMaximum(0,10,1.e-10,10000);
-    
+
   if (fIsMC) {
     fProduction = new TH1F("fProduction",";#it{p} (GeV/#it{c});Entries",100,-10,10);
     fList->Add(fProduction);
@@ -313,12 +329,22 @@ void AliAnalysisTaskNucleiYieldtemp::UserCreateOutputObjects() {
     const float deltaSigma = 2.f * fSigmaLimit / fSigmaNbins;
     for (int i = 0; i <= fSigmaNbins; ++i)
       sigmaBins[i] = i * deltaSigma - fSigmaLimit;
-    const int nTOFSigmaBins = 240;
-    float tofSigmaBins[nTOFSigmaBins + 1];
-    for (int i = 0; i <= nTOFSigmaBins; ++i)
-      tofSigmaBins[i] = -12.f + i * 0.1;
-    fTOFsignalQA = new TH1D("QATOF","QATOF",140,-7,7);
-    fList->Add(fTOFsignalQA);
+    float TOFSigmaBins[fTOFSigmaNbins + 1];
+    const float deltaTOFSigma = 2.f * fTOFSigmaLimit / fTOFSigmaNbins;
+    for (int i = 0; i <= fTOFSigmaNbins; ++i)
+      TOFSigmaBins[i] = i * deltaTOFSigma - fTOFSigmaLimit;
+
+    float nSigmasBins[51];
+    float multBins[51];
+    for (int i = 0; i <= 50; ++i) {
+      nSigmasBins[i] = -5. + i * 0.2;
+      multBins[i] = i * 2.;
+    }
+  
+    fMultDistributionTPC = new TH3F("fMultDistributionTPC",";Reference Multiplicity;#it{p}_{T} (Gev/#it{c});TPC n#sigma", 50, multBins, nPtBins,pTbins, 50, nSigmasBins);
+    fMultDistributionTOF = new TH3F("fMultDistributionTOF",";Reference Multiplicity;#it{p}_{T} (Gev/#it{c});TOF n#sigma", 50, multBins, nPtBins,pTbins, 50, nSigmasBins);
+    fList->Add(fMultDistributionTPC);
+    fList->Add(fMultDistributionTOF);
 
     for (int iC = 0; iC < 2; ++iC) {
       fTOFsignal[iC] = new TH3F(Form("f%cTOFsignal",letter[iC]),
@@ -331,18 +357,20 @@ void AliAnalysisTaskNucleiYieldtemp::UserCreateOutputObjects() {
           ";Centrality (%);#it{p}_{T} (GeV/#it{c});#it{m}^{2}-m_{PDG}^{2} (GeV/#it{c}^{2})^{2}",
           nCentBins,centBins,nPtBins,pTbins,fTOFnBins,tofBins);
       fTOFnSigma[iC] = new TH3F(Form("f%cTOFnSigma",letter[iC]),";Centrality (%);#it{p}_{T} (GeV/#it{c}); n_{#sigma} d",
-          nCentBins,centBins,nPtBins,pTbins,nTOFSigmaBins,tofSigmaBins);
+          nCentBins,centBins,nPtBins,pTbins,fTOFSigmaNbins,TOFSigmaBins);
       fTOFT0FillNsigma[iC] = new TH3F(Form("f%cTOFT0FillNsigma",letter[iC]),";Centrality (%);#it{p}_{T} (GeV/#it{c}); n_{#sigma} d",
-          nCentBins,centBins,nPtBins,pTbins,nTOFSigmaBins,tofSigmaBins);
+          nCentBins,centBins,nPtBins,pTbins,fTOFSigmaNbins,TOFSigmaBins);
       fTOFNoT0FillNsigma[iC] = new TH3F(Form("f%cTOFNoT0FillNsigma",letter[iC]),";Centrality (%);#it{p}_{T} (GeV/#it{c}); n_{#sigma} d",
-          nCentBins,centBins,nPtBins,pTbins,nTOFSigmaBins,tofSigmaBins);
+          nCentBins,centBins,nPtBins,pTbins,fTOFSigmaNbins,TOFSigmaBins);
       fTPCcounts[iC] = new TH3F(Form("f%cTPCcounts",letter[iC]),";Centrality (%);#it{p}_{T} (GeV/#it{c}); n_{#sigma} d",
           nCentBins,centBins,nPtBins,pTbins,fSigmaNbins,sigmaBins);
+      fTPCcountsQA[iC] = new TH1F(Form("f%cTPCcountsQA",letter[iC]),"; n_{#sigma} d",fSigmaNbins,sigmaBins);
       fTPCsignalTpl[iC] = new TH3F(Form("f%cTPCsignalTpl",letter[iC]),";Centrality (%);#it{p}_{T} (GeV/#it{c}); n_{#sigma} d",
           nCentBins,centBins,nPtBins,pTbins,fSigmaNbins,sigmaBins);
       fTPCbackgroundTpl[iC] = new TH3F(Form("f%cTPCbackgroundTpl",letter[iC]),";Centrality (%);#it{p}_{T} (GeV/#it{c}); n_{#sigma} d",
           nCentBins,centBins,nPtBins,pTbins,fSigmaNbins,sigmaBins);
       fHist2Phi[iC] = new TH2F(Form("fHist2Phi%c", letter[iC]), Form("%c; #Phi (rad) ;#it{p}_{T} (Gev/#it{c});", letter[iC]), 100, 0, TMath::TwoPi(), 100, 0, 7);
+
       fList->Add(fTOFsignal[iC]);
       fList->Add(fTOFT0FillSignal[iC]);
       fList->Add(fTOFNoT0FillSignal[iC]);
@@ -350,6 +378,7 @@ void AliAnalysisTaskNucleiYieldtemp::UserCreateOutputObjects() {
       fList->Add(fTOFT0FillNsigma[iC]);
       fList->Add(fTOFNoT0FillNsigma[iC]);
       fList->Add(fTPCcounts[iC]);
+      fList->Add(fTPCcountsQA[iC]);
       fList->Add(fTPCsignalTpl[iC]);
       fList->Add(fTPCbackgroundTpl[iC]);
       fList->Add(fHist2Phi[iC]);
@@ -363,6 +392,18 @@ void AliAnalysisTaskNucleiYieldtemp::UserCreateOutputObjects() {
         fList->Add(fDCAz[iT][iC]);
       }
     }
+    fTPCcountsQA2 = new TH1F("fTPCcountsQA","; n_{#sigma} d",200,-10,10);
+    fTPCcountsQA3 = new TH1F("fTPCcountsQA_after","; n_{#sigma} d",200,-10,10);
+    fTPCcountsQA4 = new TH1F("fTPCcountsQA_check1","; n_{#sigma} d",200,-10,10);
+    fTPCcountsQA5 = new TH1F("fTPCcountsQA_check1_after","; n_{#sigma} d",200,-10,10);
+    fTPCcountsQA6 = new TH2F("fTPCcountsQA_check2",";#it{p}_{T} (GeV/#it{c}); n_{#sigma} d",100,0,10,200,-10,10);
+    fTPCcountsQA7 = new TH2F("fTPCcountsQA_check2_after",";#it{p}_{T} (GeV/#it{c}); n_{#sigma} d",100,0,10,200,-10,10);
+    fList->Add(fTPCcountsQA2);
+    fList->Add(fTPCcountsQA3);
+    fList->Add(fTPCcountsQA4);
+    fList->Add(fTPCcountsQA5);
+    fList->Add(fTPCcountsQA6);
+    fList->Add(fTPCcountsQA7);
   }
 
   std::array<std::string,4> norm_labels = {
@@ -383,15 +424,14 @@ void AliAnalysisTaskNucleiYieldtemp::UserCreateOutputObjects() {
   PostData(1,fList);
 
   if (fSaveTrees) {
+    OpenFile(1);
     fRTree = new TTree("RTree", "Reconstructed nuclei");
-    fRTree->Branch("RLightNucleusTemp", &fRecNucleus);
-    if (fIsMC) fRTree->Branch("SLightNucleusTemp", &fSimNucleus);
-
+    fRTree->Branch("RLightNucleustemp", &fRecNucleus);
     PostData(2, fRTree);
 
     if (fIsMC) {
       fSTree = new TTree("STree", "Simulated nuclei");
-      fSTree->Branch("SLightNucleusTemp", &fSimNucleus);
+      fSTree->Branch("SLightNucleustemp", &fSimNucleus);
       PostData(3, fSTree);
     }
   }
@@ -416,6 +456,12 @@ void AliAnalysisTaskNucleiYieldtemp::UserExec(Option_t *){
   if (fParticle == AliPID::kUnknown) {
     ::Error("AliAnalysisTaskNucleiYieldtemp::UserExec", "No particle type set");
     PostData(1, fList);
+    if(fSaveTrees){
+      PostData(2, fRTree);
+      if(fIsMC){
+        PostData(3, fSTree);
+      }
+    }
     return;
   }
 
@@ -430,6 +476,10 @@ void AliAnalysisTaskNucleiYieldtemp::UserExec(Option_t *){
     EventAccepted = fEventCut.AcceptEvent(ev);
     /// The centrality selection in PbPb uses the percentile determined with V0.
     fCentrality = fEventCut.GetCentrality(fEstimator);
+
+    AliAnalysisManager *mgr = AliAnalysisManager::GetAnalysisManager();
+    AliInputEventHandler* handl = (AliInputEventHandler*)mgr->GetInputEventHandler();
+    fTriggerMask = handl->IsEventSelected();
   } else {
     if (fNanoPIDindexTPC == -1 || fNanoPIDindexTOF == -1) {
       AliNanoAODTrack::InitPIDIndex();
@@ -438,20 +488,12 @@ void AliAnalysisTaskNucleiYieldtemp::UserExec(Option_t *){
     }
 
     fCentrality = nanoHeader->GetCentralityV0M();
+    fTriggerMask = nanoHeader->GetOfflineTrigger();
   }
 
   bool specialTrigger = true;
   if (fINT7intervals.size()) {
-    unsigned int trigger = 0u;
-    if (nanoHeader)
-      trigger = nanoHeader->GetOfflineTrigger();
-    else {
-      AliAnalysisManager *mgr = AliAnalysisManager::GetAnalysisManager();
-      AliInputEventHandler* handl = (AliInputEventHandler*)mgr->GetInputEventHandler();
-      trigger = handl->IsEventSelected() ;
-    }
-    bool kINT7trigger = (trigger & AliVEvent::kINT7) == AliVEvent::kINT7;
-
+    bool kINT7trigger = (fTriggerMask & AliVEvent::kINT7) == AliVEvent::kINT7;
     for (int iInt = 0; iInt < fINT7intervals.size(); iInt +=2) {
       if (fCentrality >= fINT7intervals[iInt] && fCentrality < fINT7intervals[iInt+1]) {
         EventAccepted = kINT7trigger;
@@ -473,10 +515,18 @@ void AliAnalysisTaskNucleiYieldtemp::UserExec(Option_t *){
         fNormalisationHist->Fill(fCentrality,iC);
       }
     }
+    AliAODHeader* aodHeader = dynamic_cast<AliAODHeader*>(fInputEvent->GetHeader());
+    fRefMult = aodHeader->GetRefMultiplicityComb08();
   }
 
   if (!EventAccepted) {
     PostData(1, fList);
+    if(fSaveTrees){
+      PostData(2, fRTree);
+      if(fIsMC){
+        PostData(3, fSTree);
+      }
+    }
     return;
   }
 
@@ -496,6 +546,12 @@ void AliAnalysisTaskNucleiYieldtemp::UserExec(Option_t *){
 
   if (Flatten(fCentrality) && fEnableFlattening) {
     PostData(1, fList);
+    if(fSaveTrees){
+      PostData(2, fRTree);
+      if(fIsMC){
+        PostData(3, fSTree);
+      }
+    }
     return;
   }
 
@@ -520,10 +576,12 @@ void AliAnalysisTaskNucleiYieldtemp::UserExec(Option_t *){
           continue;
         }
       }
-      SetSLightNucleusTemp(part,fSimNucleus);
-      if (fSaveTrees) fSTree->Fill();
       if (fIsMC) fProduction->Fill(mult * part->P());
       if (part->Y() > fRequireYmax || part->Y() < fRequireYmin) continue;
+      if (fSaveTrees) {
+        SetSLightNucleustemp(part,fSimNucleus);
+        fSTree->Fill();
+      }
       if (part->IsPhysicalPrimary() && fIsMC) fTotal[iC]->Fill(fCentrality,part->Pt());
     }
   }
@@ -543,7 +601,9 @@ void AliAnalysisTaskNucleiYieldtemp::UserExec(Option_t *){
   PostData(1, fList);
   if (fSaveTrees) {
     PostData(2, fRTree);
-    PostData(3, fSTree);
+    if (fIsMC) {
+      PostData(3, fSTree);
+    }
   }
 }
 
@@ -732,6 +792,17 @@ void AliAnalysisTaskNucleiYieldtemp::SetSigmaBins(Int_t nbins, Float_t limit) {
   fSigmaLimit = limit;
 }
 
+/// This function sets the number of n\f$_{sigma_{TOF}}\f$ bins and the boundaries of the histogram
+///
+/// \param nbins Number of bins
+/// \param limit Boundaries of the histogram (symmetrical with respect to zero)
+/// \return void
+///
+void AliAnalysisTaskNucleiYieldtemp::SetTOFSigmaBins(Int_t nbins, Float_t limit) {
+  fTOFSigmaNbins = nbins;
+  fTOFSigmaLimit = limit;
+}
+
 /// This function sets the particle type to be analysed
 ///
 /// \param part Particle type
@@ -813,36 +884,37 @@ int AliAnalysisTaskNucleiYieldtemp::GetNumberOfITSclustersPerLayer(AliVTrack *tr
   return nSPD + nSDD + nSSD;
 }
 
-void AliAnalysisTaskNucleiYieldtemp::SetSLightNucleusTemp(AliAODMCParticle* part, SLightNucleusTemp& snucl) {
+void AliAnalysisTaskNucleiYieldtemp::SetSLightNucleustemp(AliAODMCParticle* part, SLightNucleustemp& snucl) {
   snucl.pt = part->Pt();
   snucl.eta = part->Eta();
-  snucl.phi = part->Phi();
+  snucl.centrality = fCentrality;
   snucl.pdg = part->GetPdgCode();
   if (part->IsPhysicalPrimary())
-    snucl.flag = 1;
+    snucl.flag = SLightNucleustemp::kPrimary;
   else if (part->IsSecondaryFromWeakDecay())
-    snucl.flag = 2;
+    snucl.flag = SLightNucleustemp::kSecondaryWeakDecay;
   else
-    snucl.flag = 4;
+    snucl.flag = SLightNucleustemp::kSecondaryMaterial;
 }
+
 
 /// This function checks whether a track has or has not a prolongation in TOF.
 ///
 /// \param track Track that has to be checked
 /// \return \f$\beta\f$ of the particle, -1 means that there is no correct prolongation in TOF.
 ///
-float AliAnalysisTaskNucleiYieldtemp::HasTOF(AliAODTrack *track, AliPIDResponse *pid) {
+float AliAnalysisTaskNucleiYieldtemp::HasTOF(AliVTrack *track, AliPIDResponse *pid) {
   bool hasTOFout  = track->GetStatus() & AliVTrack::kTOFout;
   bool hasTOFtime = track->GetStatus() & AliVTrack::kTIME;
   const float len = track->GetIntegratedLength();
   bool hasTOF = hasTOFout && hasTOFtime && (len > 350.);
+
 
   if (!hasTOF) return -1.;
   const float tim = track->GetTOFsignal() - pid->GetTOFResponse().GetStartTime(track->GetTPCmomentum());
   const float beta = len / (tim * LIGHT_SPEED);
   return beta;
 }
-
 /// This function checks whether a track has or has not a prolongation in TOF.
 ///
 /// \param track Track that has to be checked
@@ -881,7 +953,9 @@ Bool_t AliAnalysisTaskNucleiYieldtemp::IsSelectedTPCGeoCut(AliAODTrack *track) {
   return checkResult;
 }
 Bool_t AliAnalysisTaskNucleiYieldtemp::IsSelectedTPCGeoCut(AliNanoAODTrack *track) {
-  Bool_t checkResult = kTRUE;
-  // Currently NanoCut is not implemented !!
-  return checkResult;
+  static const Int_t tpcGeo_index = AliNanoAODTrackMapping::GetInstance()->GetVarIndex("cstTPCGeoLength");
+  if(static_cast<AliNanoAODTrack*>(track)->GetVar(tpcGeo_index) > 0.5)
+    return kTRUE;
+  else
+    return kFALSE;
 }

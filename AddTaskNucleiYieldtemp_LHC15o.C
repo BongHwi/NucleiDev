@@ -45,31 +45,9 @@ AliAnalysisTaskNucleiYieldtemp* AddTaskNucleiYieldtemp_LHC15o(Bool_t isMC = kFAL
   deu->SetDCABins(80,-0.5,0.5);
 
   //float p[5] = {7.25105e-01,4.99820e+01,2.35714e-10,2.49196e+00,1.41570e+01};
-  float resolution = 0.05871;
-  float bethe[5]={-166.11733,-0.11020473,0.10851357,2.7018593,-0.087597824};
-  deu->SetCustomTPCpid(bethe,resolution);
-  deu->fEventCut.SetManualMode();
-  deu->fEventCut.SetupPbPb2018();
-  deu->fEventCut.UseTimeRangeCut();
-  deu->fINT7intervals = {10.,30.,50.,90.};
-  // deu->SetRequireTPCpidSigmas(3.f);
   float cent[11] = {0.f,5.f,10.f,20.f,30.f,40.f,50.f,60.f,70.f,80.f,90.f};
   deu->SetCentBins(10, cent);
   deu->SetUseFlattening(false);
-  // float pt[30] = {
-  //   0.2f,0.3f,0.4f,0.5f,0.6f,0.7f,0.8f,0.9f,1.0f,1.1f,
-  //   1.2f,1.4f,1.6f,1.8f,2.0f,2.2f,2.4f,2.6f,2.8f,3.0f,
-  //   3.2f,3.4f,3.6f,3.8f,4.0f,4.2f,4.4f,5.0f,6.0f,8.0f
-  // };
-  // deu->SetPtBins(29,pt);
-
-  float pt[17] = {0.95, 1.45, 1.95, 2.45, 2.95, 3.45, 3.95, 4.45, 4.95, 5.45, 5.95, 6.45 ,6.95,7.45, 7.95, 8.95, 9.95};
-    float corr[3] = {-1.67762e-03f,2.76265e-01,-1.72861e-01};
-    deu->fPtCorrectionM.Set(3,corr);
-    deu->fPtCorrectionA.Set(3,corr);
-    deu->SetEnablePtCorrection(false);
-    deu->SetPtBins(16,pt);
-    deu->SetRequireTPCpidSigmas(4.5);
 
   float dcabins[53] = {
     -1.30,-1.20,-1.10,-1.00,-0.90,-0.80,-0.70,-0.60,-0.50,-0.40,
@@ -80,17 +58,31 @@ AliAnalysisTaskNucleiYieldtemp* AddTaskNucleiYieldtemp_LHC15o(Bool_t isMC = kFAL
      1.10, 1.20, 1.30
   };
   deu->SetDCABins(52,dcabins);
+  double p[4] = {1., 1., 74., 63.};
+  deu->fTOFfunctionPars.Set(4, p);
+  // float pt[17] = {
+  // 1.1,1.5,1.95, 2.45, 2.95, 3.45, 3.95, 4.45, 4.95, 5.45,
+  // 5.95, 6.45, 6.95,8.0,9.0,10.0
+  //};
+  float pt[17] = {0.95, 1.45, 1.95, 2.45, 2.95, 3.45, 3.95, 4.45, 4.95,
+                  5.45, 5.95, 6.45, 6.95, 7.45, 7.95, 8.95, 9.95};
+  float corr[3] = {-1.67762e-03f, 2.76265e-01, -1.72861e-01};
+  deu->fPtCorrectionM.Set(3, corr);
+  deu->fPtCorrectionA.Set(3, corr);
+  deu->SetEnablePtCorrection(false);
+  deu->SetPtBins(16, pt);
+  deu->SetRequireTPCpidSigmas(4.5);
+  float resolution = 0.05871;
+  float bethe[5] = {-166.11733, -0.11020473, 0.10851357, 2.7018593,
+                    -0.087597824};
+  deu->SetCustomTPCpid(bethe, resolution);
 
-  double p[4] = {1.,1.,74.,63.};
-  deu->fTOFfunctionPars.Set(4,p);
-  deu->SetRequireTPCrecPoints(100);
+  // deu->SetRequireTPCrecPoints(100);
+  deu->SetRequireMaxDCAz(0.1);
 
-  // For LHC18 analysis
-    deu->SetRequireDeadZoneWidth(3.0);
-    deu->SetRequireCutGeoNcrNclLength(130);
-    deu->SetRequireCutGeoNcrNclGeom1Pt(1.5);
-    deu->SetRequireCutGeoNcrNclFractionNcr(0.85);
-    deu->SetRequireCutGeoNcrNclFractionNcl(0.7);
+  deu->SetTPCActiveLengthCut(false);  // This will add TPCActiveTrackCut but
+                                       // not applying in the AcceptTrack()
+  deu->SaveTrees();
 
   mgr->AddTask(deu);
 
@@ -99,8 +91,18 @@ AliAnalysisTaskNucleiYieldtemp* AddTaskNucleiYieldtemp_LHC15o(Bool_t isMC = kFAL
       TList::Class(),
       AliAnalysisManager::kOutputContainer,
       output.Data());
+  AliAnalysisDataContainer *deuCont1 = mgr->CreateContainer(Form("RTree%s",tskname.Data()),
+      TTree::Class(),
+      AliAnalysisManager::kOutputContainer,
+      output.Data());
+  AliAnalysisDataContainer *deuCont2 = mgr->CreateContainer(Form("STree%s",tskname.Data()),
+      TTree::Class(),
+      AliAnalysisManager::kOutputContainer,
+      output.Data());
   mgr->ConnectInput  (deu,  0, mgr->GetCommonInputContainer());
   mgr->ConnectOutput (deu,  1, deuCont);
+  mgr->ConnectOutput (deu,  2, deuCont1);
+  mgr->ConnectOutput (deu,  3, deuCont2);
   return deu;
 }
 
